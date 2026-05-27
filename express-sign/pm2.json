@@ -1,0 +1,26 @@
+{
+  "apps": {
+    "name": "express-sign",
+    "script": "./bin/www",
+    "cwd": ".",
+    "watch": false,
+    "ignore_watch": [
+      "node_modules",
+      "public",
+      "logs",
+      "uploads"
+    ],
+    "exec_mode": "fork",
+    "instances": 1,
+    "error_file": "./logs/app-err.log",
+    "out_file": "./logs/app-out.log",
+    "merge_logs": true,
+    "log_date_format": "YYYY-MM-DD HH:mm:ss",
+    "min_uptime": "60s",
+    "max_restarts": 10,
+    "restart_delay": 3000,
+    "env": {
+      "NODE_ENV": "production"
+    }
+  }
+}

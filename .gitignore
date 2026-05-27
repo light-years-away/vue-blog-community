@@ -1,0 +1,59 @@
+# 依赖
+node_modules/
+
+# 构建产物
+dist/
+dist-ssr/
+
+# 环境配置
+.env
+.env.local
+.env.*.local
+
+# 日志
+logs/
+*.log
+
+# 编辑器
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 敏感文件
+express-sign/auth/private.cer
+express-sign/user/user.json
+
+# 上传目录（用户上传的图片）
+express-sign/uploads/
+
+# 个人文档（不上传）
+*.docx
+*.pdf
+out.txt
+付浩哲_*.doc
+付浩哲_*.pdf
+项目经历.docx
+项目流程图mermaid代码.txt
+注册流程图.png
+登录流程图.png
+230014230234-*.doc
+
+# Claude Code 配置
+.claude/
+**/.claude/
+
+# 临时文件
+pm2.txt
+*copy*
+付浩哲_network_*
+
+# 测试脚本
+*.py
