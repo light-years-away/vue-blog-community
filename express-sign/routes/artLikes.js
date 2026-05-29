@@ -2,7 +2,7 @@
  * @Author: 
  * @Date: 2026-03-25 13:18:04
  * @LastEditors: Please set LastEditors
- * @LastEditTime: 2026-03-25 14:50:18
+ * @LastEditTime: 2026-05-29 11:51:05
  * @Description: 
  * @FilePath: \express-sign\routes\artLikes.js
  */
@@ -11,48 +11,54 @@ const router = express.Router();
 const Article = require('../models/Article')
 const assert = require('http-assert')
 
-/* post 文章点赞/取消点赞 */
+/* post 文章点赞/取消点赞
+ *
+ * 并发安全说明：
+ * 旧写法是先 findById 读  判断 isLiked   findByIdAndUpdate 写，
+ * "读-写" 之间有间隙，两个并发请求可能读到相同的 like_users，
+ * 都判断为"未点赞"，导致 $inc 被重复执行、计数错误。
+ *
+ * 新写法通过"尝试取消   失败则点赞"的模式，把判断条件塞进查询条件，
+ * 第一个 findOneAndUpdate 是查询+更新一步完成的原子操作，消除了读-写竞态。
+ * 第二个 findOneAndUpdate 用 $ne 排除已点赞用户，配合 $addToSet 双重保障。
+ */
 router.post('/:id', async (req, res, next) => {
   let id = req.params.id
-  let userId = req._id //从 token 拿到的当前用户 ID
+  let userId = req._id
+
   try {
-    //查文章
+    // 步骤1: 确认文章存在
     let article = await Article.findById(id)
     assert(article, 404, '文章不存在')
 
-    //判断用户是否已经点过赞
-    let isLiked = article.like_users.includes(userId)
+    // 步骤2: 原子操作  尝试取消点赞
+    // 查询条件带上 userId，只有"已点赞"的文档才会被匹配到
+    // 整个 查询+更新 是一次原子操作，不会被其他请求插队
+    let result = await Article.findOneAndUpdate(
+      { _id: id, like_users: userId },                  // 只有已点赞才命中
+      { $pull: { like_users: userId }, $inc: { like_num: -1 } },
+      { new: true }
+    )
 
-    let updateQuery = {}
+    let isLiked
 
-    if (isLiked) {
-      //已点赞 -> 取消点赞
-      updateQuery = {
-        $pull: { like_users: userId }, // 从数组移除
-        $inc: { like_num: -1 }        // 数量减 1
-      }
+    if (result) {
+      // 命中  原来已点赞  已取消
+      isLiked = false
     } else {
-      //未点赞 -> 点赞
-      updateQuery = {
-        $addToSet: { like_users: userId }, // 把用户 ID 加到 like_users 数组里 但如果已经有了 就不加了
-        $inc: { like_num: 1 }  // 数量加 1
-      }
+      // 未命中  原来没点赞  执行点赞
+      // 查询条件用 $ne 排除已有点赞，防止并发重复加
+      await Article.findOneAndUpdate(
+        { _id: id, like_users: { $ne: userId } },
+        { $addToSet: { like_users: userId }, $inc: { like_num: 1 } }
+      )
+      isLiked = true
     }
-
-
-    //执行更新
-    await Article.findByIdAndUpdate(
-      id,// 查找条件 通过 ID 找文章
-      updateQuery,
-      {
-        new: true//{ new: true } = 返回更新后的数据，而不是更新前的旧数据
-      })
-
 
     res.send(200, {
       message: '点赞成功',
       data: {
-        message: isLiked ? '取消点赞成功' : '点赞成功'
+        message: isLiked ? '点赞成功' : '取消点赞成功'
       }
     })
   } catch (err) {
