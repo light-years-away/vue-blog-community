@@ -28,6 +28,11 @@ export default {
     url: '/keys',
     method: 'GET'
   },
+  'captcha': {
+    url: '/captcha',
+    method: 'GET',
+    noMessage: true  // 静默请求，失败了不弹错误提示
+  },
   'articles': {
     url: '/api/rest/articles',
     method: 'GET'

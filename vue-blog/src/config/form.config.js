@@ -19,6 +19,12 @@ export default {
       query: "password",
       type: "password",
       placeholder: "密码: 8-12位 最少包含一位(数字/大小写字母)",
+    },
+    {
+      label: "验证码",
+      query: "captcha",
+      type: "captcha",
+      placeholder: "请输入验证码",
     }
   ],
   "column": [
@@ -47,6 +53,12 @@ export default {
       query: "password",
       type: "password",
       placeholder: "密码: 8-12位 最少包含一位(数字/大小写字母)"
+    },
+    {
+      label: "验证码",
+      query: "captcha",
+      type: "captcha",
+      placeholder: "请输入验证码",
     }
   ],
   "userInfo": [

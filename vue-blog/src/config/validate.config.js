@@ -45,6 +45,12 @@ export default {
       message: '名称必填',
       trigger: ['blur', 'submit']
     }],
+  captcha: [
+    {
+      required: true,
+      message: '验证码必填',
+      trigger: ['blur', 'submit']
+    }],
   nikname: [
     {
       required: true,

@@ -30,8 +30,8 @@ service.interceptors.request.use(async (config) => {
 //响应拦截器
 service.interceptors.response.use((response) => {
   //剥离最外层
-  let result = response.data
-  return result?.data;
+  let result = response.data // 剥掉 axios 外层  { code:200, data:{ key, svg } }
+  return result?.data;//剥掉 {code,data} → { key, svg }
 }, (error) => {
   return Promise.reject(error);
 });

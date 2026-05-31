@@ -23,6 +23,16 @@
           </template>
         </van-field>
 
+        <!-- 验证码 -->
+        <template v-else-if="item.type === 'captcha'">
+          <van-field v-model="form.captcha" :type="'text'" label="" :placeholder="item.placeholder"
+            :label-width="80">
+            <template #extra>
+              <span v-html="captchaSvg" class="captcha-svg-m" @click="refreshCaptcha" title="点击刷新"></span>
+            </template>
+          </van-field>
+        </template>
+
         <!-- 普通文本/密码输入项 -->
         <van-field v-else v-model="form[item.query]" :type="item.type" :label="item.label" :readonly="item.readonly"
           :placeholder="item.placeholder" :rules="formatRuleTrigger(validates[item.query])" :label-width="80" :required="isRequired(item.query)"/>
@@ -38,6 +48,7 @@ import FORM_DATA from '@/config/form.config'
 import VALIDATE_DATE from '@/config/validate.config'
 import { showToast } from 'vant'
 import baseConfig from '@/config/base.config.js'
+import http from '@/api/http'
 //创建 Store 实例
 const userStore = useUserStore()
 // props
@@ -140,11 +151,27 @@ const isRequired = (query) => {
   return rules.some(rule => rule.required)
 }
 
+// 验证码
+const captchaSvg = ref('')
+
+const hasCaptcha = computed(() => props.type === 'login' || props.type === 'register')
+
+const refreshCaptcha = async () => {
+  try {
+    const res = await http({ type: 'captcha' })
+    captchaSvg.value = res.svg
+    form.value.captchaKey = res.key
+  } catch (err) {
+    console.error('验证码加载失败', err)
+  }
+}
+
 //type 变化时重置
 watch(
   () => props.type,
   () => {
     initForm()
+    if (hasCaptcha.value) refreshCaptcha()
   }
 )
 
@@ -169,6 +196,7 @@ onMounted(() => {
       Object.entries(userInfo).filter(([key]) => configFields.includes(key))
     )
   }
+  if (hasCaptcha.value) refreshCaptcha()
 })
 
 
@@ -193,4 +221,9 @@ defineExpose({
   .van-uploader
     margin: 0
 
+.captcha-svg-m
+  cursor pointer
+  :deep(svg)
+    height 36px
+    vertical-align middle
 </style>

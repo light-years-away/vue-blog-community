@@ -33,7 +33,13 @@
 
         <!-- autocomplete="off" 关闭浏览器对输入框的 自动补全 / 记忆 功能-->
         <el-input v-if="['text', 'password'].includes(item.type)" v-model="form[item.query]" :type="item.type"
-          :name="item.query" autocomplete="off" :readonly="item.readonly"/>
+          :name="item.query" autocomplete="off" :readonly="item.readonly" />
+
+        <!-- 验证码：SVG 图片 + 输入框 + 刷新按钮 -->
+        <div v-if="item.type === 'captcha'" class="captcha-wrap">
+          <el-input v-model="form.captcha" placeholder="请输入验证码" class="captcha-input" />
+          <span v-html="captchaSvg" class="captcha-svg" @click="refreshCaptcha" title="点击刷新"></span>
+        </div>
       </el-form-item>
     </el-form>
   </div>
@@ -47,6 +53,7 @@ import VALIDATE_DATE from '@/config/validate.config'
 import baseConfig from '@/config/base.config.js'
 import { useUserStore } from '@/stores/userStore'
 import { ElNotification } from 'element-plus'
+import http from '@/api/http'
 const BASE_URL = baseConfig.BASE_URL
 //创建 Store 实例
 const userStore = useUserStore()
@@ -64,6 +71,23 @@ const props = defineProps({
   }
 })
 
+// 验证码
+const captchaSvg = ref('')
+
+const refreshCaptcha = async () => {
+  try {
+    const res = await http({ type: 'captcha' })
+    captchaSvg.value = res.svg
+    form.value.captchaKey = res.key
+  } catch (err) {
+    console.error('验证码加载失败', err)
+  }
+}
+
+const hasCaptcha = computed(() => {
+  return props.type === 'login' || props.type === 'register'
+})
+
 // 初始化用户信息
 onMounted(() => {
   if (props.type === 'userInfo') {
@@ -71,6 +95,7 @@ onMounted(() => {
   } else {
     initForm()
   }
+  if (hasCaptcha.value) refreshCaptcha()
 })
 // 监听 userInfo 变化 数据回来时，会自动再赋值一遍
 watch(
@@ -88,6 +113,7 @@ watch(
   () => props.type, //监听 props.type 变化
   () => {
     initForm()
+    if (hasCaptcha.value) refreshCaptcha()  // 切换登录/注册时刷新验证码
   }
 )
 const validates = computed(() =>
@@ -124,7 +150,7 @@ defineExpose({
   //把表单数据暴露给父组件
   // form: form.value//父组件想拿子组件的数据 必须子组件主动暴露
   form: form,// 暴露整个 form 不是 form.value 因为form.value传递的赋值那一刻的静态值
-  resetForm:initForm
+  resetForm: initForm
 })
 // 头像上传成功
 const handleAvatarSuccess = (res) => {
@@ -154,4 +180,29 @@ const beforeAvatarUpload = (file) => {
 
 </script>
 
-<style></style>
+<style>
+.captcha-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  line-height: 0; /* 消除 SVG 底部多余空隙 */
+}
+
+.captcha-svg {
+  cursor: pointer;
+  flex-shrink: 0;
+  height: 32px; /* 和 el-input 默认高度一致，label 才能对齐 input */
+  display: flex;
+  align-items: center;
+
+  /* 让内部 SVG 缩放到等高 */
+  & svg {
+    height: 100%;
+    width: auto;
+  }
+}
+
+.captcha-input {
+  flex: 1;
+}
+</style>
