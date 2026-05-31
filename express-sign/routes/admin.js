@@ -2,7 +2,7 @@
  * @Author: 
  * @Date: 2026-02-04 18:27:13
  * @LastEditors: Please set LastEditors
- * @LastEditTime: 2026-02-06 16:41:18
+ * @LastEditTime: 2026-05-31 20:07:25
  * @Description: 
  * @FilePath: \express-sign\routes\admin.js
  */
@@ -14,13 +14,15 @@ const assert = require('http-assert');
 const createError = require('http-errors')
 const QUE_MAP = require('../plugins/QUE_MAP')
 const { decrypt, encrypt } = require('../core/util/util')
+const captchaVerify = require('../middleware/captcha')
 
 const CLASSIFY = {
   'login': "login",
   'register': "register"
 }
 
-router.post('/:classify', async (req, res, next) => {
+// 登录/注册都必须先过验证码校验
+router.post('/:classify', captchaVerify, async (req, res, next) => {
   let { username, password } = req.body
   let { classify } = req.params
 

@@ -2,9 +2,9 @@
  * @Author: 
  * @Date: 2025-12-09 14:24:49
  * @LastEditors: Please set LastEditors
- * @LastEditTime: 2026-05-16 22:06:42
+ * @LastEditTime: 2026-05-31 19:37:57
  * @Description: 
- * @FilePath: \付浩哲_vue第四十天_20260407\express-sign\app.js
+ * @FilePath: \express-sign\app.js
  */
 var createError = require('http-errors');
 var express = require('express');
@@ -12,6 +12,7 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 const cors = require('cors')
+const rateLimit = require('express-rate-limit')
 const mongoose = require('./plugins/db')//引入就会执行模块中的代码
 const { maxFileSize } = require('./config')
 const { expressjwt } = require('express-jwt')
@@ -64,6 +65,40 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'uploads')));//查找文件时会从这里配置的默认静态文件地址中寻找http://127.0.0.1:3000/article/DongJing_1769929827527.jpg
 
 
+// SPA history 模式回退
+// history 路由下 URL 没有 #，刷新 /article/123 时服务器收到的是 /article/123，
+// 而服务器上并不存在这个静态文件，所以需要把前端路由的 GET 请求都指向 index.html，
+// 让 Vue Router 接管后续路由解析
+app.get('*', (req, res, next) => {
+  // 后端 API 路径前缀 这些不走 history 回退
+  const API_PREFIXES = ['/api', '/admin', '/keys', '/upload', '/articles/likes', '/captcha']
+  if (API_PREFIXES.some(p => req.path.startsWith(p))) {
+    return next()
+  }
+
+  // 带扩展名的请求（.js / .css / .png 等）是真实静态资源，
+  //   express.static 已尝试过但没找到 交给 404 处理
+  if (path.extname(req.path)) {
+    return next()
+  }
+
+  // /user 和 /index 既是前端页面路由，也是后端 API 挂载点
+  //    通过浏览器的 Accept 头来区分：
+  //      浏览器地址栏访问   Accept: text/html   返回前端页面
+  //      axios API 调用     Accept: application/json  交给后端路由
+  const SHARED_PATHS = ['/user', '/index']
+  if (SHARED_PATHS.some(p => req.path === p || req.path.startsWith(p + '/'))) {
+    const accept = req.get('Accept') || ''
+    if (!accept.includes('text/html')) {
+      return next()
+    }
+  }
+
+  // 其他的 GET 请求都视为前端路由（/editor /socket /article/123 等）
+  //    返回 index.html，浏览器加载 Vue 应用后由 Vue Router 匹配对应页面
+  res.sendFile(path.join(__dirname, 'public', 'index.html'))
+})
+
 //中间件  nameMiddleware
 const resourceMiddleware = require('./middleware/resource')
 
@@ -75,6 +110,22 @@ const uploadRoute = require('./routes/upload')
 const searchRoute = require('./routes/search')
 const artLikesRoute = require('./routes/artLikes')
 const userRoute = require('./routes/user')
+const captchaRoute = require('./routes/captcha')
+
+// 登录/注册限流：同 IP 1 分钟内最多 5 次
+const loginLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 5,
+  message: { code: 429, message: '请求太频繁，请 15 分钟后再试' }
+})
+
+// 点赞接口限流：同 IP 1 分钟最多 20 次
+const likeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  message: { code: 429, message: '操作太频繁，请稍后再试' }
+})
+
 //所有需要鉴权的接口 都会先走Token 全局校验
 //这一步只验证用户是不是 合法登录用户 不验证 用户能不能修改这篇文章
 app.use(expressjwt({
@@ -108,14 +159,18 @@ app.use(expressjwt({
     { url: '/admin/register' },
     { url: '/keys' },
     { url: '/articles/search' },
+    { url: '/captcha' },
     // { url: '/articles/likes' },//点赞接口必须带 token
   ]
 }))
 
+// 验证码路由 跳过 JWT 验证
+app.use('/captcha', captchaRoute)
+
 app.use('/api/rest/:resource', resourceMiddleware(), busRoute)
 
 //登录注册
-app.use('/admin', adminRoute)
+app.use('/admin',loginLimiter, adminRoute)
 //用户信息
 app.use('/user', userRoute)
 app.use('/index', (req, res, next) => {
@@ -140,8 +195,8 @@ app.use('/upload', uploadRoute)
 //文章搜索
 // app.use('/articles/search', searchRoute)
 
-//文章点赞
-app.use('/articles/likes', artLikesRoute)
+//文章点赞（带限流）
+app.use('/articles/likes', likeLimiter, artLikesRoute)
 // app.use('/login', loginRouter);
 // app.use('/user', indexRouter);
 // app.use('/register', registerRouter);
@@ -189,7 +244,7 @@ app.use(function (err, req, res, next) {
   //处理Mongoose 模型校验错误（用户名格式不对、密码必填、邮箱格式非法等，对应模型中 required、validate 配置的规则）
   if (err.errors) {
     let paramErrors = Object.entries(err.errors).map(([key, val]) => {
-      return `${val.message} `
+      return `${val.message} `// 取的就是你 schema 里定义的 message
     }).join(',')
     // .reduce((acc, curr) => {
     //   acc += curr

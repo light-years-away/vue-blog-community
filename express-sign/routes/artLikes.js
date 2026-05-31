@@ -2,7 +2,7 @@
  * @Author: 
  * @Date: 2026-03-25 13:18:04
  * @LastEditors: Please set LastEditors
- * @LastEditTime: 2026-05-29 11:51:05
+ * @LastEditTime: 2026-05-31 19:51:29
  * @Description: 
  * @FilePath: \express-sign\routes\artLikes.js
  */
@@ -35,7 +35,7 @@ router.post('/:id', async (req, res, next) => {
     // 查询条件带上 userId，只有"已点赞"的文档才会被匹配到
     // 整个 查询+更新 是一次原子操作，不会被其他请求插队
     let result = await Article.findOneAndUpdate(
-      { _id: id, like_users: userId },                  // 只有已点赞才命中
+      { _id: id, like_users: userId },              // 只有已点赞才命中
       { $pull: { like_users: userId }, $inc: { like_num: -1 } },
       { new: true }
     )

@@ -2,7 +2,7 @@
  * @Author: 
  * @Date: 2026-02-11 19:27:25
  * @LastEditors: Please set LastEditors
- * @LastEditTime: 2026-03-29 00:20:42
+ * @LastEditTime: 2026-05-28 23:40:18
  * @Description: 
  * @FilePath: \express-sign\routes\user.js
  */
@@ -33,7 +33,7 @@ router.put('/', async (req, res, next) => {
       })
       // 如果找到重复昵称 → 直接抛出错误
       if (existUser) {
-        return next({ message: "昵称已被占用，请更换", statusCode: 400 })
+        return next({ message: "昵称已被占用，请更换", status: 400  })
       }
     }
 
